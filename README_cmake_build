@@ -1,0 +1,27 @@
+On Constance cluster of PNNL following compiler 
+combinations work ok:
+
+$ module load gcc/7.1.0
+$ module load cuda/9.2.148
+$ module load cmake/3.8.2
+
+In the base level CMakeLists.txt
+set the DEFINE_RUNONGPU option to ON
+as under:
+
+option( DEFINE_RUNONGPU "Use of GPU" ON)
+
+
+$ cd ~/grappolo-09-2016
+$ mkdir build install
+$ cd build
+$ cmake ../ -DCMAKE_INSTALL_PREFIX=~/grappolo-09-2016/install
+$ make -j4
+$ make install
+
+RUN the gpu_graph executable within a directory 
+that contains file 'fewprimes.txt'
+
+command to run the gpu_graph executable
+
+$ ./install/bin/gpu_graph -p 100 -f 1 ../<path to >/af_shell9.mtx 

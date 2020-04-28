@@ -1,0 +1,34 @@
+# grappolo 
+
+set( IO_HEADERS
+  ${CMAKE_SOURCE_DIR}/DefineStructure
+)
+
+set( FSFOLDER_SRC
+     ${CMAKE_SOURCE_DIR}/${FSFOLDER}/fullSyncUtility.cpp
+     ${CMAKE_SOURCE_DIR}/${FSFOLDER}/parallelLouvainMethodEarlyTerminate.cpp
+     ${CMAKE_SOURCE_DIR}/${FSFOLDER}/parallelLouvainMethodFullSync.cpp
+     ${CMAKE_SOURCE_DIR}/${FSFOLDER}/parallelLouvainMethodFullSyncEarly.cpp
+     ${CMAKE_SOURCE_DIR}/${FSFOLDER}/runMultiPhaseSyncType.cpp
+   )
+
+add_library( full_syn_opt STATIC
+  ${FSFOLDER_SRC} 
+)
+
+target_include_directories( full_syn_opt PUBLIC ${IO_HEADERS} )
+
+target_link_libraries( full_syn_opt )
+
+install( TARGETS
+  full_syn_opt
+  DESTINATION lib
+)
+
+install( FILES
+  ${IO_HEADERS}/defs.h
+  ${IO_HEADERS}/utilityClusteringFunctions.h
+  ${IO_HEADERS}/sync_comm.h
+  DESTINATION include
+)
+
