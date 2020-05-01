@@ -81,7 +81,8 @@ int main(int argc, char** argv) {
         case 5: loadMetisFileFormat(G, inFile); break;
         case 6: parse_UndirectedEdgeList(G, inFile); break;
             //parse_UndirectedEdgeListDarpaHive(G, inFile); break;
-        case 7: /*parse_DirectedEdgeList(G, inFile);*/ printf("This routine is under development.\n"); exit(1); break;
+        case 7: printf("This routine is under development.\n"); exit(1); break;
+                /*parse_DirectedEdgeList(G, inFile); break;*/
         case 8: parse_SNAP(G, inFile); break;
         case 9: parse_EdgeListBinaryNew(G,inFile); break;
         case 10:
