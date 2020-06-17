@@ -1,9 +1,10 @@
 #GCC Compilers:
-CC  = gcc-9
-CPP = g++-9
+CC  = gcc
+CPP = g++
 CFLAGS   = -g -Ofast -fopenmp -std=c99 
-CPPFLAGS = -g -Ofast -fopenmp -std=c++11
-#-Ofast
+CPPFLAGS = -g -Ofast -fopenmp -fopenmp-simd -DVEC_ILOOP_SUMVDEG -DUSE_OMP_DYNAMIC
+#-DVEC_ILOOP_SUMVDEG
+#-DSPLIT_LOOP_SUMVDEG -DUSE_OMP_DYNAMIC
 
 METIS_HOME = $(HOME)/metis-5.1.0
 METIS_INCLUDE = -I$(METIS_HOME)/include
@@ -18,6 +19,14 @@ UTFOLDER = ./Utility
 CLFOLDER = ./Coloring
 FSFOLDER = ./FullSyncOptimization
 LIBS     = -lm
+
+USE_PMEM_ALLOC=0
+ifeq ($(USE_PMEM_ALLOC),1)
+    MEMKIND_PATH=$(HOME)/builds/memkind
+    CPPFLAGS += -I$(MEMKIND_PATH)/include -DUSE_PMEM_ALLOC
+    LIBS += -Wl,-rpath=$(MEMKIND_PATH)/lib -L$(MEMKIND_PATH)/lib -lmemkind
+    LDFLAGS += $(LIBS)
+endif
 
 TARGET_1 = convertFileToBinary
 TARGET_2 = driverForGraphClusteringApprox
@@ -34,7 +43,7 @@ TARGET_12 = driverForMatrixReorderingND
 #TARGET   = $(TARGET_1) $(TARGET_2) $(TARGET_4) $(TARGET_7) $(TARGET_8) $(TARGET_9) $(TARGET_10)
 #TARGET   = $(TARGET_4) $(TARGET_7) $(TARGET_9) $(TARGET_10) $(TARGET_11) $(TARGET_12) 
 #TARGET   = $(TARGET_4) $(TARGET_7) 
-TARGET   = $(TARGET_4) $(TARGET_6) $(TARGET_7)
+TARGET   = $(TARGET_1) $(TARGET_4) $(TARGET_6) $(TARGET_7)
 
 # $(TARGET_3) $(TARGET_4) $(TARGET_5)
 #TARGET = $(TARGET_1) $(TARGET_2) $(TARGET_3) $(TARGET_4)
@@ -89,16 +98,16 @@ $(TARGET_2): $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(FSOBJECTS) $(CLOBJECTS) $(
 	$(CPP) $(LDFLAGS) -o ./$(TARGET_2) $(TARGET_2).o $(FSOBJECTS) $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(CLOBJECTS) $(LIBS)
 
 $(TARGET_4): $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(FSOBJECTS) $(CLOBJECTS) $(TARGET_4).o
-	$(CPP) $(LDFLAGS) -o ./$(TARGET_4) $(TARGET_4).o $(FSOBJECTS) $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(CLOBJECTS) $(LIBS)
+	$(CPP) $(LDFLAGS) -o ./$(TARGET_4) $(TARGET_4).o $(FSOBJECTS) $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(CLOBJECTS) $(LDFLAGS) 
 
 $(TARGET_6): $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(FSOBJECTS) $(CLOBJECTS) $(TARGET_6).o
 	$(CPP) $(LDFLAGS) -o ./$(TARGET_6) $(TARGET_6).o $(FSOBJECTS) $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(CLOBJECTS) $(LIBS)
 
 $(TARGET_7): $(UTOBJECTS) $(TARGET_7).o
-	$(CPP) $(LDFLAGS) -o ./$(TARGET_7) $(UTOBJECTS) $(IOOBJECTS) $(TARGET_7).o
+	$(CPP) $(LDFLAGS) -o ./$(TARGET_7) $(UTOBJECTS) $(IOOBJECTS) $(TARGET_7).o $(LDFLAGS)
 
 $(TARGET_8): $(UTOBJECTS) $(TARGET_8).o
-	$(CPP) $(LDFLAGS) -o ./$(TARGET_8) $(UTOBJECTS) $(IOOBJECTS) $(TARGET_8).o
+	$(CPP) $(LDFLAGS) -o ./$(TARGET_8) $(UTOBJECTS) $(IOOBJECTS) $(TARGET_8).o $(LDFLAGS)
 
 $(TARGET_9): $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(FSOBJECTS) $(CLOBJECTS) $(TARGET_9).o
 	$(CPP) $(LDFLAGS) -o ./$(TARGET_9) $(TARGET_9).o $(FSOBJECTS) $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(CLOBJECTS) $(LIBS)
@@ -114,20 +123,18 @@ $(TARGET_12): $(IOOBJECTS) $(COOBJECTS) $(UTOBJECTS) $(FSOBJECTS) $(CLOBJECTS) $
 
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -I$(INCLUDES) -o $@
-
+	$(CC) $(CFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 .cpp.o:
-	$(CPP) $(CPPFLAGS) -c $< -I$(INCLUDES) -o $@
+	$(CPP) $(CPPFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 
 $(IOFOLDER)/%.o: $(IOFOLDER)/%.cpp
-	$(CPP) $(CPPFLAGS) -c $< -I$(INCLUDES) -o $@
+	$(CPP) $(CPPFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 
 $(COFOLDER)/%.o: $(COFOLDER)/%.cpp
-	$(CPP) $(CPPFLAGS) -c $< -I$(INCLUDES) -o $@
+	$(CPP) $(CPPFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 
 $(UTFOLDER)/%.o: $(UTFOLDER)/%.cpp
-	$(CPP) $(CPPFLAGS) -c $< -I$(INCLUDES) -o $@
-
+	$(CPP) $(CPPFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 
 clean:
 	rm -f *.o $(TARGET_1).o $(TARGET_2).o $(TARGET_3).o $(FSFOLDER)/*.o $(IOFOLDER)/*.o $(COFOLDER)/*.o $(UTFOLDER)/*.o $(CLFOLDER)/*.o blosc_filter/*.so

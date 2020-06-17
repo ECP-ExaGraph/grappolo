@@ -42,11 +42,28 @@
 #include "defs.h"
 #include "utilityClusteringFunctions.h"
 #include "basic_comm.h"
+
+#ifdef USE_PMEM_ALLOC
+#include <memkind.h>
+
+#define PATH_MAX (128)
+#define PMEM_MAX_SIZE (1ULL << 40)
+
+static char path[PATH_MAX]="/pmem1";
+
+static void print_err_message(int err)
+{
+    char error_message[MEMKIND_ERROR_MESSAGE_SIZE];
+    memkind_error_message(err, error_message, MEMKIND_ERROR_MESSAGE_SIZE);
+    fprintf(stderr, "%s\n", error_message);
+}
+#endif
+
 using namespace std;
+
 
 double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
                              double thresh, double *totTime, int *numItr) {
-
 #ifdef PRINT_DETAILED_STATS_
     printf("Within parallelLouvianMethod()\n");
 #endif
@@ -70,9 +87,34 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     long    NV        = G->numVertices;
     long    NS        = G->sVertices;
     long    NE        = G->numEdges;
+#ifdef USE_PMEM_ALLOC
+    // create PMEM partition with specific size
+    struct memkind *pmem_kind = NULL;
+    int err = memkind_create_pmem(path, PMEM_MAX_SIZE, &pmem_kind);
+    if (err) {
+        print_err_message(err);
+        return 1;
+    }
+    long  *edgeListPtrs_pmem = (long *)  memkind_malloc(pmem_kind, (NV+1) * sizeof(long));
+    edge *edgeList_pmem = (edge *) memkind_malloc(pmem_kind, 2*NE*sizeof(edge));
+    if (edgeListPtrs_pmem == NULL) {
+	    fprintf(stderr, "Unable to allocate pmem for edgeListPtrs_pmem.\n");
+	    return 1;
+    }
+    if (edgeList_pmem == NULL) {
+	    fprintf(stderr, "Unable to allocate pmem for edgeList_pmem.\n");
+	    return 1;
+    }
+    memcpy(edgeListPtrs_pmem, G->edgeListPtrs, (NV+1)*sizeof(long));
+    memcpy(edgeList_pmem, G->edgeList, 2*NE*sizeof(long));
+    long    *vtxPtr   = edgeListPtrs_pmem;
+    edge    *vtxInd   = edgeList_pmem;
+    printf("PMEM allocation succeded, copied edge list and pointers to PMEM.\n");
+#else
     long    *vtxPtr   = G->edgeListPtrs;
     edge    *vtxInd   = G->edgeList;
-    
+#endif    
+       
     /* Variables for computing modularity */
     long totalEdgeWeightTwice;
     double constantForSecondTerm;
@@ -84,16 +126,20 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     
     /********************** Initialization **************************/
     time1 = omp_get_wtime();
+    //Community info. (ai and size)
     //Store the degree of all vertices
     double* vDegree = (double *) malloc (NV * sizeof(double)); assert(vDegree != 0);
-    //Community info. (ai and size)
-    Comm *cInfo = (Comm *) malloc (NV * sizeof(Comm)); assert(cInfo != 0);
+    Comm* cInfo = (Comm *) malloc (NV * sizeof(Comm)); assert(cInfo != 0);
+#if defined(SPLIT_LOOP_SUMVDEG)
+    sumVertexDegreeEdgeScan(vtxInd, vDegree, NE , NV, cInfo);	// Sum up the vertex degree
+#else
+    sumVertexDegree(vtxInd, vtxPtr, vDegree, NV , cInfo);	// Sum up the vertex degree
+#endif
     //use for updating Community
     Comm *cUpdate = (Comm*)malloc(NV*sizeof(Comm)); assert(cUpdate != 0);
+
     //use for Modularity calculation (eii)
     double* clusterWeightInternal = (double*) malloc (NV*sizeof(double)); assert(clusterWeightInternal != 0);
-    
-    sumVertexDegree(vtxInd, vtxPtr, vDegree, NV , cInfo);	// Sum up the vertex degree
     
     /*** Compute the total edge weight (2m) and 1/2m ***/
     constantForSecondTerm = calConstantForSecondTerm(vDegree, NV); // 1 over sum of the degree
@@ -255,10 +301,22 @@ reduction(+:e_xx) reduction(+:a2_x)
     free(pastCommAss);
     free(currCommAss);
     free(targetCommAss);
+#ifdef MERGE_GRAPH_COMM_INIT
     free(vDegree);
     free(cInfo);
+#endif
     free(cUpdate);
     free(clusterWeightInternal);
     
+#ifdef USE_PMEM_ALLOC
+    memkind_free(pmem_kind, edgeListPtrs_pmem);
+    memkind_free(pmem_kind, edgeList_pmem);
+
+    err = memkind_destroy_kind(pmem_kind);
+    if (err) {
+        print_err_message(err);
+        return 1;
+    }
+#endif
     return prevMod;
 }

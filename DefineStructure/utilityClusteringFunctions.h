@@ -48,6 +48,10 @@ using namespace std;
 
 void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm* cInfo);
 
+#if defined(SPLIT_LOOP_SUMVDEG)
+void sumVertexDegreeEdgeScan(edge* vtxInd, double* vDegree, long NE, long NV, Comm* cInfo);
+#endif
+
 double calConstantForSecondTerm(double* vDegree, long NV);
 
 void initCommAss(long* pastCommAss, long* currCommAss, long NV);

@@ -352,7 +352,6 @@ void buildNextLevelGraph(graph *Gin, graph *Gout, long *C, long numUniqueCluster
         if (tmpCounter[location+i] == 0)
         {
             //tmpCounter[location+i] = tmpCounter[location+i]/2;
-            //printf("Crap Modify this\n");
         }
         vtxIndOut[Where].weight = tmpCounter[location+i];
         //Now go through the other edges:
@@ -386,8 +385,6 @@ void buildNextLevelGraph(graph *Gin, graph *Gout, long *C, long numUniqueCluster
     //printf("End of rebuild\n");
     
 }//End of buildNextLevelGraph
-
-
 
 //This code is for finding communities in power grids based on
 //voltage levels of nodes. All nodes in a connected components with 

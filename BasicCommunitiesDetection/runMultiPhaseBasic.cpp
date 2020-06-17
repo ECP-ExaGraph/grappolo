@@ -55,7 +55,8 @@ void runMultiPhaseBasic(graph *G, long *C_orig, int basicOpt, long minGraphSize,
     double totTimeClustering=0, totTimeBuildingPhase=0, totTimeColoring=0, tmpTime=0;
     int tmpItr=0, totItr = 0;
     long NV = G->numVertices;
-    
+    double* vDegree = nullptr;
+    Comm* cInfo = nullptr;
     
     /* Step 1: Find communities */
     double prevMod = -1;
