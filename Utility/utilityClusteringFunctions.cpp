@@ -87,7 +87,7 @@ void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm*
 }//End of sumVertexDegree()
 #endif
 
-#define VBLK (128)
+#define VBLK (16)
 #define MAX(x,y) (x > y ? x : y)
 #define MIN(x,y) (x < y ? x : y)
 
@@ -179,26 +179,7 @@ for (long m=0; m<NV; m+=VBLK) {
   }
  }
 }//End of sumVertexDegree()
-#else
-#if 0
-void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm* cInfo) {
-#ifdef USE_OMP_DYNAMIC
-#pragma omp parallel for schedule(dynamic)
-#else
-#pragma omp parallel for
-#endif
-  for (long i=0; i<NV; i++) {
-    for (long j=vtxPtr[i]; j<vtxPtr[i+1]; j++) {
-    #pragma omp task untied firstprivate(i,j) shared(vDegree, vtxInd) mergeable
-      vDegree[i] += vtxInd[j].weight;  //Degree of each node
-    #pragma omp task untied firstprivate(i,j) shared(vDegree, vtxInd) mergeable
-      cInfo[i].degree += vtxInd[j].weight; //Initialize the community
-    }
-#pragma omp taskwait
-    cInfo[i].size = 1;
- }
-}//End of sumVertexDegree()
-#endif
+#elif defined(OMP_TASK_SUMVDEG)
 void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm* cInfo) {
 #ifdef USE_OMP_DYNAMIC
 #pragma omp parallel for schedule(dynamic)
@@ -207,7 +188,38 @@ void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm*
 #endif
   for (long i=0; i<NV; i++) {
     long degSum = 0;
-    #pragma omp simd reduction(+: degSum) aligned(vtxInd)
+#if defined(USE_TASKGROUP_RED)
+    #pragma omp taskgroup task_reduction(+:degSum)
+    {
+#else
+    #pragma omp taskloop untied reduction(+:degSum)
+#endif
+        for (long j=vtxPtr[i]; j<vtxPtr[i+1]; j++) {
+#if defined(USE_TASKGROUP_RED)
+        #pragma omp task untied in_reduction(+:degSum)
+#else
+#endif
+            degSum += vtxInd[j].weight; 
+        }
+#if defined(USE_TASKGROUP_RED)
+    }
+#else
+#endif
+    vDegree[i] = degSum; //Degree of each node
+    cInfo[i].degree = degSum; //Initialize the community
+    cInfo[i].size = 1;
+ }
+}//End of sumVertexDegree()
+#else
+void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm* cInfo) {
+#ifdef USE_OMP_DYNAMIC
+#pragma omp parallel for schedule(dynamic)
+#else
+#pragma omp parallel for
+#endif
+  for (long i=0; i<NV; i++) {
+    long degSum = 0;
+    #pragma omp simd reduction(+: degSum)
     for (long j=vtxPtr[i]; j<vtxPtr[i+1]; j++) {
       degSum += vtxInd[j].weight; 
     }
@@ -215,68 +227,6 @@ void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm*
     cInfo[i].degree = degSum; //Initialize the community
     cInfo[i].size = 1;
  }
-}//End of sumVertexDegree()
-#endif
-
-#if 0
-void sumVertexDegreeEdgeScan(edge* vtxInd, double* vDegree, long NE, long NV, Comm* cInfo) {
-#ifdef USE_OMP_DYNAMIC
-#pragma omp parallel for schedule(dynamic)
-#else
-#pragma omp parallel for 
-#endif 
-  for (long e=0; e<NE; e++) {
-#pragma omp atomic update
-            vDegree[vtxInd[e].head] += vtxInd[e].weight;
-#pragma omp atomic update
-            vDegree[vtxInd[e].tail] += vtxInd[e].weight;
-#pragma omp atomic update
-	    cInfo[vtxInd[e].head].degree += vtxInd[e].weight;  
-#pragma omp atomic update
-	    cInfo[vtxInd[e].tail].degree += vtxInd[e].weight;
-#pragma omp atomic write
-	    cInfo[vtxInd[e].head].size = 1;  
-#pragma omp atomic write
-	    cInfo[vtxInd[e].tail].size = 1;
-  }
-}//End of sumVertexDegree()
-#endif
-
-#if defined(SPLIT_LOOP_SUMVDEG)
-void sumVertexDegreeEdgeScan(edge* vtxInd, double* vDegree, long NE, long NV, Comm* cInfo) {
-	long* tDeg = (long*)malloc(sizeof(long)*NV);
-	memset(tDeg, 0, sizeof(long)*NV);	
-	int nts;
-#pragma omp parallel 
-	{
-		nts = omp_get_num_threads();
-	}
-#ifdef USE_OMP_DYNAMIC
-#pragma omp parallel for schedule(dynamic)
-#else
-#pragma omp parallel for 
-#endif 
-	for (long e=0; e<NE; e++) {
-		int tid = omp_get_thread_num();
-		if (vtxInd[e].head % nts == tid) {
-			tDeg[vtxInd[e].head] += vtxInd[e].weight;
-		}
-		else {
-#pragma omp atomic update
-			vDegree[vtxInd[e].head] += vtxInd[e].weight;
-		}
-		cInfo[vtxInd[e].head].degree = vDegree[vtxInd[e].head] + tDeg[vtxInd[e].head];
-		cInfo[vtxInd[e].head].size = 1;
-		if (vtxInd[e].tail % nts == tid) {
-			tDeg[vtxInd[e].tail] += vtxInd[e].weight;
-		} 
-		else {
-#pragma omp atomic update
-			vDegree[vtxInd[e].tail] += vtxInd[e].weight;
-		}
-		cInfo[vtxInd[e].tail].degree = vDegree[vtxInd[e].tail] + tDeg[vtxInd[e].tail];
-		cInfo[vtxInd[e].tail].size = 1;
-	}
 }//End of sumVertexDegree()
 #endif
 

@@ -131,7 +131,7 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     double* vDegree = (double *) malloc (NV * sizeof(double)); assert(vDegree != 0);
     Comm* cInfo = (Comm *) malloc (NV * sizeof(Comm)); assert(cInfo != 0);
 #if defined(SPLIT_LOOP_SUMVDEG)
-    sumVertexDegreeEdgeScan(vtxInd, vDegree, NE , NV, cInfo);	// Sum up the vertex degree
+    sumVertexDegreeEdgeScan(vtxInd, vtxPtr, vDegree, NE , NV, cInfo);	// Sum up the vertex degree
 #else
     sumVertexDegree(vtxInd, vtxPtr, vDegree, NV , cInfo);	// Sum up the vertex degree
 #endif
