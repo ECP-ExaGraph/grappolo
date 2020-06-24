@@ -301,10 +301,6 @@ reduction(+:e_xx) reduction(+:a2_x)
     free(pastCommAss);
     free(currCommAss);
     free(targetCommAss);
-#ifdef MERGE_GRAPH_COMM_INIT
-    free(vDegree);
-    free(cInfo);
-#endif
     free(cUpdate);
     free(clusterWeightInternal);
     
