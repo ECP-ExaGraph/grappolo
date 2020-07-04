@@ -57,14 +57,12 @@ int main(int argc, char** argv) {
     long N1=0;
     vector<long> truthCommunity;
     File.open(argv[1]);
-    long temp1, temp2;
+    long temp;
     // TODO FIXME provide choices for 1-based 
     // and whether to read 1/2 tokens per line 
     while(!File.eof()) {
-        File >> temp1 >> temp2;
-        //cout<< temp2 << " ";
-        //File >> temp2;
-        truthCommunity.push_back((long)(temp2-1));
+        File >> temp;
+        truthCommunity.push_back((long)temp);
     }
     cout << "\n";
     File.close();
@@ -77,10 +75,8 @@ int main(int argc, char** argv) {
     vector<long> outputCommunity;
     File.open(argv[2]);
     while(!File.eof()) {
-        //File >> temp1 >> temp2;
-        File >> temp2;
-        //cout<< temp2 << " ";
-        outputCommunity.push_back((long)temp2);
+        File >> temp;
+        outputCommunity.push_back((long)temp);
     }
      cout << "\n";
     File.close();
@@ -92,5 +88,4 @@ int main(int argc, char** argv) {
     computeCommunityComparisons(truthCommunity, N1, outputCommunity, N2);
    
   return 0;
-
 }
