@@ -2,7 +2,7 @@
 CC  = gcc
 CPP = g++
 CFLAGS   = -g -Ofast -fopenmp -std=c99 
-CPPFLAGS = -g -Ofast -fopenmp -fopenmp-simd -DVEC_ILOOP_SUMVDEG -DUSE_OMP_DYNAMIC
+CPPFLAGS = -g -Ofast -fopenmp 
 #-DVEC_ILOOP_SUMVDEG
 #-DSPLIT_LOOP_SUMVDEG -DUSE_OMP_DYNAMIC
 
