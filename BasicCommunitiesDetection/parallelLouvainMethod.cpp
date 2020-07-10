@@ -98,12 +98,12 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     long  *edgeListPtrs_pmem = (long *)  memkind_malloc(pmem_kind, (NV+1) * sizeof(long));
     edge *edgeList_pmem = (edge *) memkind_malloc(pmem_kind, 2*NE*sizeof(edge));
     if (edgeListPtrs_pmem == NULL) {
-	    fprintf(stderr, "Unable to allocate pmem for edgeListPtrs_pmem.\n");
-	    return 1;
+            fprintf(stderr, "Exiting after unable to allocate pmem for edgeListPtrs_pmem of size: %zu.\n", (NV+1)*sizeof(long));
+            exit(1);
     }
     if (edgeList_pmem == NULL) {
-	    fprintf(stderr, "Unable to allocate pmem for edgeList_pmem.\n");
-	    return 1;
+            fprintf(stderr, "Exiting after unable to allocate pmem for edgeList_pmem of size: %zu.\n", 2*NE*sizeof(edge));
+            exit(1);
     }
     memcpy(edgeListPtrs_pmem, G->edgeListPtrs, (NV+1)*sizeof(long));
     memcpy(edgeList_pmem, G->edgeList, 2*NE*sizeof(edge));
