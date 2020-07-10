@@ -117,7 +117,7 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     memcpy(edgeList_pmem, G->edgeList, 2*NE*sizeof(edge));
     long    *vtxPtr   = edgeListPtrs_pmem;
     edge    *vtxInd   = edgeList_pmem;
-    printf("PMEM allocation succeded, copied edge list and pointers to PMEM.\n");
+    printf("PMEM allocation successful: copied edge list and pointers to PMEM (in bytes): %zu.\n", ((NV+1)*sizeof(long) + 2*NE*sizeof(edge)));
 #else
     long    *vtxPtr   = G->edgeListPtrs;
     edge    *vtxInd   = G->edgeList;
