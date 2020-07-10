@@ -95,6 +95,14 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
         print_err_message(err);
         return 1;
     }
+#ifdef DO_PMEM_DEBUG
+    size_t resident, active, allocated;
+    memkind_update_cached_stats();
+    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_RESIDENT, &resident);
+    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_ACTIVE, &active);
+    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_ALLOCATED, &allocated);
+    printf ("PMEM stats: resident=%zu active=%zu allocated=%zu\n", resident, active, allocated);
+#endif
     long  *edgeListPtrs_pmem = (long *)  memkind_malloc(pmem_kind, (NV+1) * sizeof(long));
     edge *edgeList_pmem = (edge *) memkind_malloc(pmem_kind, 2*NE*sizeof(edge));
     if (edgeListPtrs_pmem == NULL) {
