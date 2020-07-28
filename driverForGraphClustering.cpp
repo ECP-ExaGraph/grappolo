@@ -94,6 +94,7 @@ int main(int argc, char** argv) {
         case 11: parse_UndirectedEdgeListFromJason(G, inFile); break;
         case 12: parse_UndirectedEdgeListWeighted(G, inFile); break; // for John F's graphs
         case 13: parse_UndirectedEdgeListDarpaHive(G, inFile); break;
+        case 14: parse_EdgeListFromGorder(G, inFile); break;
         default:  cout<<"A valid file type has not been specified"<<endl; exit(1);
     }
     

@@ -20,6 +20,7 @@ void parse_SNAP(graph * G, char *fileName);
 void parse_SNAP_GroundTruthCommunities(char *fileVertexMap, char *fileGroundTruth);
 void parse_UndirectedEdgeListFromJason(graph * G, char *fileName); //Data from Jason
 void parse_UndirectedEdgeListDarpaHive(graph * G, char *fileName); //DARPA-HIVE Challenge
+void parse_EdgeListFromGorder(graph * G, char *fileName); //Gorder files
 
 void writeGraphBinaryFormatNew(graph* G, char *filename, long weighted);
 void writeGraphMetisSimpleFormat(graph* G, char *filename);
