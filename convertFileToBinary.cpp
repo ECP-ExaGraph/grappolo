@@ -73,8 +73,7 @@ int main(int argc, char** argv) {
         case 5: loadMetisFileFormat(G, inFile); break;
         case 6: parse_UndirectedEdgeList(G, inFile); break;
             //parse_UndirectedEdgeListDarpaHive(G, inFile); break;
-        case 7: printf("This routine is under development.\n"); exit(1); break;
-                /* parse_DirectedEdgeList(G, inFile); break; */
+        case 7: printf("Not available\n"); exit(1); break;                              //parse_DirectedEdgeList(G, inFile); break;
         case 8: parse_SNAP(G, inFile); break;
         case 9: parse_EdgeListBinaryNew(G,inFile); break;
         case 10:
@@ -86,8 +85,10 @@ int main(int argc, char** argv) {
         case 11: parse_UndirectedEdgeListFromJason(G, inFile); break;
         case 12: parse_UndirectedEdgeListWeighted(G, inFile); break; // for John F's graphs
         case 13: parse_UndirectedEdgeListDarpaHive(G, inFile); break;
+        case 14: parse_EdgeListFromGorder(G, inFile); break;
         default:  cout<<"A valid file type has not been specified"<<endl; exit(1);
     }
+    
     
     displayGraphCharacteristics(G);
     //displayGraph(G);
