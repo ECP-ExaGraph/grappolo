@@ -107,8 +107,8 @@ bool clustering_parameters::parse(int argc, char *argv[]) {
                 break;
 
             case 'f': ftype = atoi(optarg);
-                if((ftype >13)||(ftype<0)) {
-                    cout << "ftype must be an integer between 1 to 13" << endl;
+                if((ftype >14)||(ftype<0)) {
+                    cout << "ftype must be an integer between 1 to 14" << endl;
                     return false;
                 }
                 break;
