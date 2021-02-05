@@ -7,13 +7,6 @@ CPP = icpc
 #CPP = /home/sdp/tau/x86_64/bin/tau_cxx.sh
 CFLAGS   = -g -O3 -fopenmp -std=c99 #-DRUN_FIRST_PHASE -DGRAPH_FT_LOAD=4
 CPPFLAGS = -g -O3 -fopenmp #-DRUN_FIRST_PHASE -DGRAPH_FT_LOAD=4
-# -DRUN_FIRST_PHASE
-#OMP_PATH = /home/sdp/llvm-ompt
-#CFLAGS   = -g -O3 -qopenmp -I$(OMP_PATH)/include -DOMP_TASK_SUMVDEG -DUSE_OMP_DYNAMIC -std=c99 
-#CPPFLAGS = -g -O3 -qopenmp -I$(OMP_PATH)/include -DOMP_TASK_SUMVDEG -DUSE_OMP_DYNAMIC
-#-DVEC_ILOOP_SUMVDEG
-#-DOMP_TASK_SUMVDEG 
-#-DSPLIT_LOOP_SUMVDEG -DUSE_OMP_DYNAMIC
 
 METIS_HOME = $(HOME)/metis-5.1.0
 METIS_INCLUDE = -I$(METIS_HOME)/include
