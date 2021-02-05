@@ -163,8 +163,13 @@ void runMultiPhaseBasic(graph *G, long *C_orig, int basicOpt, long minGraphSize,
     //Clean up:
     free(C);
     if(G != 0) {
-        free(G->edgeListPtrs);
-        free(G->edgeList);
+#ifdef USE_PMEM_ALLOC
+        //memkind_free(NULL, &G->edgeListPtrs);
+	//memkind_free(NULL, &G->edgeList);
+#else
+	free(G->edgeListPtrs);
+	free(G->edgeList);
+#endif
         free(G);
     }
 }//End of runMultiPhaseLouvainAlgorithm()
@@ -219,7 +224,7 @@ void runMultiPhaseBasicOnce(graph *G, long *C_orig, int basicOpt, long minGraphS
         
         //Check for modularity gain and build the graph for next phase
         //In case coloring is used, make sure the non-coloring routine is run at least once
-        if( (currMod - prevMod) > threshold ) {
+	if( (currMod - prevMod) > threshold ) {
             Gnew = (graph *) malloc (sizeof(graph)); assert(Gnew != 0);
             tmpTime =  buildNextLevelGraphOpt(G, Gnew, C, numClusters, numThreads);
             totTimeBuildingPhase += tmpTime;
@@ -240,7 +245,6 @@ void runMultiPhaseBasicOnce(graph *G, long *C_orig, int basicOpt, long minGraphS
                 C[i] = -1;
             }
         }
-        
     } //End of while(1)
     
     printf("********************************************\n");
@@ -259,9 +263,91 @@ void runMultiPhaseBasicOnce(graph *G, long *C_orig, int basicOpt, long minGraphS
     //Clean up:
     free(C);
     if(G != 0) {
+#ifdef USE_PMEM_ALLOC
+        //memkind_free(NULL, &G->edgeListPtrs);
+	//memkind_free(NULL, &G->edgeList);
+#else
         free(G->edgeListPtrs);
         free(G->edgeList);
+#endif
         free(G);
     }
 
 }//End of runMultiPhaseLouvainAlgorithm()
+
+#if defined(RUN_FIRST_PHASE)
+void runMultiPhaseBasicOnceWithoutRebuilding(graph *G, long *C_orig, int basicOpt, long minGraphSize,
+                        double threshold, double C_threshold, int numThreads, int threadsOpt)
+{
+    double totTimeClustering=0, totTimeBuildingPhase=0, totTimeColoring=0, tmpTime=0;
+    int tmpItr=0, totItr = 0;
+    long NV = G->numVertices;
+    
+    /* Step 1: Find communities */
+    double prevMod = -1;
+    double currMod = -1;
+    
+    graph *Gnew; //To build new hierarchical graphs
+    long numClusters;
+    long *C = (long *) malloc (NV * sizeof(long));
+    assert(C != 0);
+#pragma omp parallel for
+    for (long i=0; i<NV; i++) {
+        C[i] = -1;
+    }
+    
+    // Run just one phase
+    {
+        prevMod = currMod;
+        
+        if(basicOpt == 1){
+            currMod = parallelLouvianMethodNoMap(G, C, numThreads, currMod, threshold, &tmpTime, &tmpItr);
+        }else if(threadsOpt == 1){
+            currMod = parallelLouvianMethod(G, C, numThreads, currMod, threshold, &tmpTime, &tmpItr);
+        }else{
+            currMod = parallelLouvianMethodScale(G, C, numThreads, currMod, threshold, &tmpTime, &tmpItr);
+        }
+        
+        totTimeClustering += tmpTime;
+        totItr += tmpItr;
+        
+        //Renumber the clusters contiguiously
+        numClusters = renumberClustersContiguously(C, G->numVertices);
+        printf("Number of unique clusters: %ld\n", numClusters);
+        
+        //Keep track of clusters in C_orig
+#pragma omp parallel for
+        for (long i=0; i<NV; i++) {
+            C_orig[i] = C[i]; //After the first phase
+        }
+        printf("Done updating C_orig\n");
+        
+    } //End of while(1)
+    
+    printf("********************************************\n");
+    printf("***********   Phase 1 results  *************\n");
+    printf("********************************************\n");
+    printf("Number of threads              : %ld\n", numThreads);
+    printf("Total number of iterations     : %ld\n", totItr);
+    printf("Final number of clusters       : %ld\n", numClusters);
+    printf("Final modularity               : %lf\n", currMod);
+    printf("Total time for clustering      : %lf\n", totTimeClustering);
+    printf("Total time for building phases : %lf\n", totTimeBuildingPhase);
+    printf("********************************************\n");
+    printf("TOTAL TIME                     : %lf\n", (totTimeClustering+totTimeBuildingPhase+totTimeColoring) );
+    printf("********************************************\n");
+    
+    //Clean up:
+    free(C);
+    if(G != 0) {
+#ifdef USE_PMEM_ALLOC
+        //memkind_free(NULL, &G->edgeListPtrs);
+	//memkind_free(NULL, &G->edgeList);
+#else
+        free(G->edgeListPtrs);
+        free(G->edgeList);
+#endif
+        free(G);
+    }
+}//End of runMultiPhaseLouvainAlgorithm()
+#endif

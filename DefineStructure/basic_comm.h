@@ -9,6 +9,10 @@ void runMultiPhaseBasic(graph *G, long *C_orig, int basicOpt, long minGraphSize,
 void runMultiPhaseBasicOnce(graph *G, long *C_orig, int basicOpt, long minGraphSize,
 			double threshold, double C_threshold, int numThreads, int threadsOpt);
 
+#if defined(RUN_FIRST_PHASE)
+void runMultiPhaseBasicOnceWithoutRebuilding(graph *G, long *C_orig, int basicOpt, long minGraphSize,
+			double threshold, double C_threshold, int numThreads, int threadsOpt);
+#endif
 // uses Granell, Arenas, et al. Fast track resistance
 void runMultiPhaseBasicFastTrackResistance(graph *G, long *C_orig, int basicOpt, long minGraphSize,
 			double threshold, double C_threshold, int numThreads, int threadsOpt);

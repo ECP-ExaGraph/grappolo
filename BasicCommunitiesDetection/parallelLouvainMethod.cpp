@@ -43,23 +43,67 @@
 #include "utilityClusteringFunctions.h"
 #include "basic_comm.h"
 
-#ifdef USE_PMEM_ALLOC
-#include <memkind.h>
+extern void __attribute__((noinline))
+plm_init(long NV,
+	 double* clusterWeightInternal,
+	 Comm *cUpdate);
 
-#define PATH_MAX (128)
-#define PMEM_MAX_SIZE (1ULL << 40)
 
-static char path[PATH_MAX]="/pmem1";
-
-static void print_err_message(int err)
+extern void __attribute__((noinline))
+plm_analyzeClusters(long  NV,
+		    long *vtxPtr,
+		    edge *vtxInd,
+		    long* currCommAss,
+		    double* clusterWeightInternal,
+		    Comm* cInfo,
+		    double* vDegree,
+		    double constantForSecondTerm,
+		    long* targetCommAss,
+		    Comm *cUpdate)
 {
-    char error_message[MEMKIND_ERROR_MESSAGE_SIZE];
-    memkind_error_message(err, error_message, MEMKIND_ERROR_MESSAGE_SIZE);
-    fprintf(stderr, "%s\n", error_message);
+#pragma omp parallel for
+        for (long i=0; i<NV; i++) {
+            long adj1 = vtxPtr[i];
+            long adj2 = vtxPtr[i+1];
+            double selfLoop = 0;
+            //Build a datastructure to hold the cluster structure of its neighbors
+            map<long, long> clusterLocalMap; //Map each neighbor's cluster to a local number
+            map<long, long>::iterator storedAlready;
+            vector<double> Counter; //Number of edges in each unique cluster
+            //Add v's current cluster:
+            if(adj1 != adj2){
+                clusterLocalMap[currCommAss[i]] = 0;
+                Counter.push_back(0); //Initialize the counter to ZERO (no edges incident yet)
+                //Find unique cluster ids and #of edges incident (eicj) to them
+                selfLoop = buildLocalMapCounter(adj1, adj2, clusterLocalMap, Counter, vtxInd, currCommAss, i);
+                // Update delta Q calculation
+                clusterWeightInternal[i] += Counter[0]; //(e_ix)
+                //Calculate the max
+                targetCommAss[i] = max(clusterLocalMap, Counter, selfLoop, cInfo, vDegree[i], currCommAss[i], constantForSecondTerm);
+                //assert((targetCommAss[i] >= 0)&&(targetCommAss[i] < NV));
+            } else {
+                targetCommAss[i] = -1;
+            }
+            
+            //Update
+            if(targetCommAss[i] != currCommAss[i]  && targetCommAss[i] != -1) {
+#pragma omp atomic update
+                cUpdate[targetCommAss[i]].degree += vDegree[i];
+#pragma omp atomic update
+                cUpdate[targetCommAss[i]].size += 1;
+#pragma omp atomic update
+                cUpdate[currCommAss[i]].degree -= vDegree[i];
+#pragma omp atomic update
+                cUpdate[currCommAss[i]].size -=1;
+                /*
+                 __sync_fetch_and_add(&cUpdate[targetCommAss[i]].size, 1);
+                 __sync_fetch_and_sub(&cUpdate[currCommAss[i]].degree, vDegree[i]);
+                 __sync_fetch_and_sub(&cUpdate[currCommAss[i]].size, 1);*/
+            }//End of If()
+            clusterLocalMap.clear();
+            Counter.clear();
+        }//End of for(i)
 }
-#endif
-
-using namespace std;
 
 
 double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
@@ -87,41 +131,8 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     long    NV        = G->numVertices;
     long    NS        = G->sVertices;
     long    NE        = G->numEdges;
-#ifdef USE_PMEM_ALLOC
-    // create PMEM partition with specific size
-    struct memkind *pmem_kind = NULL;
-    int err = memkind_create_pmem(path, PMEM_MAX_SIZE, &pmem_kind);
-    if (err) {
-        print_err_message(err);
-        return 1;
-    }
-#ifdef DO_PMEM_DEBUG
-    size_t resident, active, allocated;
-    memkind_update_cached_stats();
-    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_RESIDENT, &resident);
-    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_ACTIVE, &active);
-    memkind_get_stat(pmem_kind, MEMKIND_STAT_TYPE_ALLOCATED, &allocated);
-    printf ("PMEM stats: resident=%zu active=%zu allocated=%zu\n", resident, active, allocated);
-#endif
-    long  *edgeListPtrs_pmem = (long *)  memkind_malloc(pmem_kind, (NV+1) * sizeof(long));
-    edge *edgeList_pmem = (edge *) memkind_malloc(pmem_kind, 2*NE*sizeof(edge));
-    if (edgeListPtrs_pmem == NULL) {
-            fprintf(stderr, "Exiting after unable to allocate pmem for edgeListPtrs_pmem of size: %zu.\n", (NV+1)*sizeof(long));
-            exit(1);
-    }
-    if (edgeList_pmem == NULL) {
-            fprintf(stderr, "Exiting after unable to allocate pmem for edgeList_pmem of size: %zu.\n", 2*NE*sizeof(edge));
-            exit(1);
-    }
-    memcpy(edgeListPtrs_pmem, G->edgeListPtrs, (NV+1)*sizeof(long));
-    memcpy(edgeList_pmem, G->edgeList, 2*NE*sizeof(edge));
-    long    *vtxPtr   = edgeListPtrs_pmem;
-    edge    *vtxInd   = edgeList_pmem;
-    printf("PMEM allocation successful: copied edge list and pointers to PMEM (in bytes): %zu.\n", ((NV+1)*sizeof(long) + 2*NE*sizeof(edge)));
-#else
     long    *vtxPtr   = G->edgeListPtrs;
     edge    *vtxInd   = G->edgeList;
-#endif    
        
     /* Variables for computing modularity */
     long totalEdgeWeightTwice;
@@ -138,11 +149,7 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     //Store the degree of all vertices
     double* vDegree = (double *) malloc (NV * sizeof(double)); assert(vDegree != 0);
     Comm* cInfo = (Comm *) malloc (NV * sizeof(Comm)); assert(cInfo != 0);
-#if defined(SPLIT_LOOP_SUMVDEG)
-    sumVertexDegreeEdgeScan(vtxInd, vtxPtr, vDegree, NE , NV, cInfo);	// Sum up the vertex degree
-#else
     sumVertexDegree(vtxInd, vtxPtr, vDegree, NV , cInfo);	// Sum up the vertex degree
-#endif
     //use for updating Community
     Comm *cUpdate = (Comm*)malloc(NV*sizeof(Comm)); assert(cUpdate != 0);
 
@@ -188,56 +195,12 @@ double parallelLouvianMethod(graph *G, long *C, int nThreads, double Lower,
     while(true) {
         numItrs++;
         time1 = omp_get_wtime();
+
         /* Re-initialize datastructures */
-#pragma omp parallel for
-        for (long i=0; i<NV; i++) {
-            clusterWeightInternal[i] = 0;
-            cUpdate[i].degree =0;
-            cUpdate[i].size =0;
-        }
-        
-#pragma omp parallel for
-        for (long i=0; i<NV; i++) {
-            long adj1 = vtxPtr[i];
-            long adj2 = vtxPtr[i+1];
-            double selfLoop = 0;
-            //Build a datastructure to hold the cluster structure of its neighbors
-            map<long, long> clusterLocalMap; //Map each neighbor's cluster to a local number
-            map<long, long>::iterator storedAlready;
-            vector<double> Counter; //Number of edges in each unique cluster
-            //Add v's current cluster:
-            if(adj1 != adj2){
-                clusterLocalMap[currCommAss[i]] = 0;
-                Counter.push_back(0); //Initialize the counter to ZERO (no edges incident yet)
-                //Find unique cluster ids and #of edges incident (eicj) to them
-                selfLoop = buildLocalMapCounter(adj1, adj2, clusterLocalMap, Counter, vtxInd, currCommAss, i);
-                // Update delta Q calculation
-                clusterWeightInternal[i] += Counter[0]; //(e_ix)
-                //Calculate the max
-                targetCommAss[i] = max(clusterLocalMap, Counter, selfLoop, cInfo, vDegree[i], currCommAss[i], constantForSecondTerm);
-                //assert((targetCommAss[i] >= 0)&&(targetCommAss[i] < NV));
-            } else {
-                targetCommAss[i] = -1;
-            }
-            
-            //Update
-            if(targetCommAss[i] != currCommAss[i]  && targetCommAss[i] != -1) {
-#pragma omp atomic update
-                cUpdate[targetCommAss[i]].degree += vDegree[i];
-#pragma omp atomic update
-                cUpdate[targetCommAss[i]].size += 1;
-#pragma omp atomic update
-                cUpdate[currCommAss[i]].degree -= vDegree[i];
-#pragma omp atomic update
-                cUpdate[currCommAss[i]].size -=1;
-                /*
-                 __sync_fetch_and_add(&cUpdate[targetCommAss[i]].size, 1);
-                 __sync_fetch_and_sub(&cUpdate[currCommAss[i]].degree, vDegree[i]);
-                 __sync_fetch_and_sub(&cUpdate[currCommAss[i]].size, 1);*/
-            }//End of If()
-            clusterLocalMap.clear();
-            Counter.clear();
-        }//End of for(i)
+	plm_init(NV, clusterWeightInternal, cUpdate);
+
+	plm_analyzeClusters(NV, vtxPtr, vtxInd, currCommAss, clusterWeightInternal, cInfo,
+			    vDegree, constantForSecondTerm, targetCommAss, cUpdate);
         time2 = omp_get_wtime();
         
         time3 = omp_get_wtime();
@@ -312,15 +275,17 @@ reduction(+:e_xx) reduction(+:a2_x)
     free(cUpdate);
     free(clusterWeightInternal);
     
-#ifdef USE_PMEM_ALLOC
-    memkind_free(pmem_kind, edgeListPtrs_pmem);
-    memkind_free(pmem_kind, edgeList_pmem);
-
-    err = memkind_destroy_kind(pmem_kind);
-    if (err) {
-        print_err_message(err);
-        return 1;
-    }
-#endif
     return prevMod;
+}
+
+void plm_init(long NV,
+	 double* clusterWeightInternal,
+	 Comm *cUpdate)
+{
+#pragma omp parallel for
+        for (long i=0; i<NV; i++) {
+            clusterWeightInternal[i] = 0;
+            cUpdate[i].degree =0;
+            cUpdate[i].size =0;
+        }
 }

@@ -54,12 +54,13 @@ void clustering_parameters::usage() {
     cout << "***************************************************************************************"<< endl;
     cout << "Input Options: \n";
     cout << "***************************************************************************************"<< endl;
-    cout << "File-type  : -f <1-8>   -- default=7" << endl;
+    cout << "File-type  : -f <1-15>   -- default=7" << endl;
     cout << "File-Type  : (1) Matrix-Market format     (2) DIMACS#9 format \n";
     cout << "           : (3) Pajek (each edge once)   (4) Pajek (twice)   (5) Metis (DIMACS#10) \n";
     cout << "           : (6) Simple edgelist (stored twice) (7) Simple edgelist (stored once) \n";
     cout << "           : (8) SNAP format (9) Binary format  (10) HDF5 (11) Data from Jason   \n";
     cout << "           : (12) Data from Jason (13) Graph Challenge format (HIVE) \n";
+    cout << "           : (14) Enable PMEM (15) Gorder format \n";
     cout << "--------------------------------------------------------------------------------------" << endl;
     cout << "Strong scaling : -s   [default=false]							" << endl;
     cout << "VF             : -v   [default=false]							" << endl;
@@ -107,8 +108,8 @@ bool clustering_parameters::parse(int argc, char *argv[]) {
                 break;
 
             case 'f': ftype = atoi(optarg);
-                if((ftype >14)||(ftype<0)) {
-                    cout << "ftype must be an integer between 1 to 14" << endl;
+                if((ftype >15)||(ftype<0)) {
+                    cout << "ftype must be an integer between 1 to 15" << endl;
                     return false;
                 }
                 break;

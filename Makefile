@@ -1,16 +1,25 @@
 #GCC Compilers:
-CC  = gcc
-CPP = g++
-CFLAGS   = -g -Ofast -fopenmp -std=c99 
-CPPFLAGS = -g -Ofast -fopenmp 
+CC  = icc
+CPP = icpc
+# set the following before building:
+# export TAU_MAKEFILE=/home/sdp/tau/x86_64/lib/Makefile.tau-icpc-ompt-v5-openmp
+#CC = /home/sdp/tau/x86_64/bin/tau_cc.sh 
+#CPP = /home/sdp/tau/x86_64/bin/tau_cxx.sh
+CFLAGS   = -g -O3 -fopenmp -std=c99 #-DRUN_FIRST_PHASE -DGRAPH_FT_LOAD=4
+CPPFLAGS = -g -O3 -fopenmp #-DRUN_FIRST_PHASE -DGRAPH_FT_LOAD=4
+# -DRUN_FIRST_PHASE
+#OMP_PATH = /home/sdp/llvm-ompt
+#CFLAGS   = -g -O3 -qopenmp -I$(OMP_PATH)/include -DOMP_TASK_SUMVDEG -DUSE_OMP_DYNAMIC -std=c99 
+#CPPFLAGS = -g -O3 -qopenmp -I$(OMP_PATH)/include -DOMP_TASK_SUMVDEG -DUSE_OMP_DYNAMIC
 #-DVEC_ILOOP_SUMVDEG
+#-DOMP_TASK_SUMVDEG 
 #-DSPLIT_LOOP_SUMVDEG -DUSE_OMP_DYNAMIC
 
 METIS_HOME = $(HOME)/metis-5.1.0
 METIS_INCLUDE = -I$(METIS_HOME)/include
 METIS_LIB = -L$(METIS_HOME)/lib -lmetis -lm
+HPCTOOLKIT_HOME=/home/sdp/hpctoolkit/hpctoolkit/bin
 
-LDFLAGS  = $(CPPFLAGS)
 #INCLUDES = ./DefineStructure/
 INCLUDES = ./DefineStructure/ $(METIS_INCLUDE)
 IOFOLDER = ./InputsOutput
@@ -18,15 +27,18 @@ COFOLDER = ./BasicCommunitiesDetection
 UTFOLDER = ./Utility
 CLFOLDER = ./Coloring
 FSFOLDER = ./FullSyncOptimization
-LIBS     = -lm
+LIBS     = -lm 
+#-Wl,-rpath=$(OMP_PATH)/lib -L$(OMP_PATH)/lib -lomp
 
 USE_PMEM_ALLOC=0
 ifeq ($(USE_PMEM_ALLOC),1)
     MEMKIND_PATH=$(HOME)/builds/memkind
-    CPPFLAGS += -I$(MEMKIND_PATH)/include -DUSE_PMEM_ALLOC
+    CPPFLAGS += -I$(MEMKIND_PATH)/include -DUSE_PMEM_ALLOC #-DUSE_KI_DAX #-DUSE_FS_DAX # #-DDO_PMEM_DEBUG # -DUSE_FS_DAX 
     LIBS += -Wl,-rpath=$(MEMKIND_PATH)/lib -L$(MEMKIND_PATH)/lib -lmemkind
     LDFLAGS += $(LIBS)
 endif
+
+LDFLAGS  = $(CPPFLAGS) $(LIBS)
 
 TARGET_1 = convertFileToBinary
 TARGET_2 = driverForGraphClusteringApprox
@@ -137,7 +149,7 @@ $(UTFOLDER)/%.o: $(UTFOLDER)/%.cpp
 	$(CPP) $(CPPFLAGS) $(LDFLAGS) -c $< -I$(INCLUDES) -o $@ 
 
 clean:
-	rm -f *.o $(TARGET_1).o $(TARGET_2).o $(TARGET_3).o $(FSFOLDER)/*.o $(IOFOLDER)/*.o $(COFOLDER)/*.o $(UTFOLDER)/*.o $(CLFOLDER)/*.o blosc_filter/*.so
+	rm -f *.o $(TARGET) $(TARGET_1).o $(TARGET_2).o $(TARGET_3).o $(FSFOLDER)/*.o $(IOFOLDER)/*.o $(COFOLDER)/*.o $(UTFOLDER)/*.o $(CLFOLDER)/*.o blosc_filter/*.so
 
 #wipe:
 #	rm -f $(TARGET).o $(OBJECTS) $(TARGET) *~ *.bak
