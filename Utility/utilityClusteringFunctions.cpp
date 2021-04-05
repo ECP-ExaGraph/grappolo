@@ -41,6 +41,7 @@
 
 #include "utilityClusteringFunctions.h"
 
+
 using namespace std;
 
 void updateAxForOpt(Comm* cInfo, long* currCommAss, double* vDegree, long NV)
@@ -68,6 +69,14 @@ void updateAxForOpt(Comm* cInfo, long* currCommAss, double* vDegree, long NV)
 }
 
 void sumVertexDegree(edge* vtxInd, long* vtxPtr, double* vDegree, long NV, Comm* cInfo) {
+
+#if defined(ENABLE_PREFETCH) && defined(__INTEL_COMPILER)
+#pragma noprefetch vDegree
+#pragma noprefetch vtxPtr
+#pragma prefetch vtxInd:3
+#pragma prefetch cInfo:3
+#endif
+
 #ifdef USE_OMP_DYNAMIC
 #pragma omp parallel for schedule(dynamic)
 #else
@@ -171,7 +180,7 @@ void initCommAssOpt(long* pastCommAss, long* currCommAss, long NV,
 
 double buildLocalMapCounter(long adj1, long adj2, map<long, long> &clusterLocalMap, 
 			 vector<double> &Counter, edge* vtxInd, long* currCommAss, long me) {
-  
+
   map<long, long>::iterator storedAlready;
   long numUniqueClusters = 1;
   double selfLoop = 0;
@@ -179,7 +188,11 @@ double buildLocalMapCounter(long adj1, long adj2, map<long, long> &clusterLocalM
     if(vtxInd[j].tail == me) {	// SelfLoop need to be recorded
       selfLoop += vtxInd[j].weight;
     }
-    
+   
+#if defined(ENABLE_PREFETCH) && defined(__INTEL_COMPILER)
+#pragma prefetch currCommAss:3
+#pragma prefetch vtxInd:3
+#endif   
     storedAlready = clusterLocalMap.find(currCommAss[vtxInd[j].tail]); //Check if it already exists
     if( storedAlready != clusterLocalMap.end() ) {	//Already exists
       Counter[storedAlready->second]+= vtxInd[j].weight; //Increment the counter with weight
