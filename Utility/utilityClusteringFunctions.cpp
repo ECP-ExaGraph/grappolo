@@ -190,7 +190,6 @@ double buildLocalMapCounter(long adj1, long adj2, map<long, long> &clusterLocalM
     }
    
 #if defined(ENABLE_PREFETCH) && defined(__INTEL_COMPILER)
-#pragma prefetch currCommAss:3
 #pragma prefetch vtxInd:3
 #endif   
     storedAlready = clusterLocalMap.find(currCommAss[vtxInd[j].tail]); //Check if it already exists
