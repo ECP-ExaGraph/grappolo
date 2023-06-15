@@ -1,8 +1,5 @@
 # grappolo 
 
-set( IO_HEADERS
-  ${CMAKE_SOURCE_DIR}/DefineStructure
-)
 
 set( CLFOLDER_SRC
      ${CMAKE_SOURCE_DIR}/${CLFOLDER}/coloringDistanceOne.cpp
